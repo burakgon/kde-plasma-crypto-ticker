@@ -1,0 +1,20 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "burakgon@icloud.com",
+                "Name": "Burak"
+            }
+        ],
+        "Category": "Online Services",
+        "Description": "Live cryptocurrency prices from Binance",
+        "Icon": "office-chart-line",
+        "Id": "com.bgn.cryptoticker",
+        "License": "MIT",
+        "Name": "Crypto Ticker",
+        "Version": "1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml"
+}
