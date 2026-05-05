@@ -13,9 +13,26 @@ MouseArea {
         ? Plasmoid.configuration.fontSize
         : Kirigami.Theme.smallFont.pixelSize
     readonly property var ticker: root.tickerData[root.primarySymbol] || null
+    readonly property bool empty: root.primarySymbol === ""
 
-    implicitWidth: layout.implicitWidth + Kirigami.Units.smallSpacing * 2
-    implicitHeight: layout.implicitHeight + Kirigami.Units.smallSpacing
+    readonly property int contentWidth: empty
+        ? emptyIcon.implicitWidth
+        : layout.implicitWidth
+    readonly property int contentHeight: empty
+        ? emptyIcon.implicitHeight
+        : layout.implicitHeight
+
+    implicitWidth: contentWidth
+    implicitHeight: contentHeight
+
+    Layout.minimumWidth: vertical ? -1 : contentWidth
+    Layout.preferredWidth: contentWidth
+    Layout.maximumWidth: vertical ? Number.POSITIVE_INFINITY : contentWidth
+    Layout.minimumHeight: vertical ? contentHeight : -1
+    Layout.preferredHeight: contentHeight
+    Layout.maximumHeight: vertical ? contentHeight : Number.POSITIVE_INFINITY
+    Layout.fillWidth: vertical
+    Layout.fillHeight: !vertical
 
     hoverEnabled: true
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton
@@ -32,7 +49,7 @@ MouseArea {
         id: layout
         anchors.centerIn: parent
         spacing: Kirigami.Units.smallSpacing
-        visible: root.primarySymbol !== ""
+        visible: !compactRoot.empty
 
         PlasmaComponents.Label {
             visible: Plasmoid.configuration.showSymbolName
@@ -64,12 +81,13 @@ MouseArea {
         }
     }
 
-    PlasmaComponents.Label {
+    Kirigami.Icon {
+        id: emptyIcon
         anchors.centerIn: parent
-        visible: root.primarySymbol === ""
-        text: i18n("No symbols")
-        font.family: "Fira Sans Condensed"
-        font.pixelSize: compactRoot.basePx
-        opacity: 0.6
+        visible: compactRoot.empty
+        source: "office-chart-line"
+        implicitWidth: Kirigami.Units.iconSizes.smallMedium
+        implicitHeight: Kirigami.Units.iconSizes.smallMedium
+        opacity: 0.7
     }
 }

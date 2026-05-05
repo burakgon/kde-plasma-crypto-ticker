@@ -41,37 +41,55 @@ Kirigami.FormLayout {
         setSymbols(list)
     }
 
-    ListModel { id: allSymbolsModel }
     ListModel { id: suggestionsModel }
+    property var allSymbols: []
+    property var allMeta: ({})
     property bool exchangeInfoLoaded: false
     property string exchangeInfoError: ""
 
+    readonly property var knownQuotes: [
+        "USDT","USDC","FDUSD","BUSD","TUSD","DAI",
+        "USD","EUR","GBP","TRY","JPY","BRL","AUD","RUB","UAH","ZAR","ARS","MXN","PLN","RON",
+        "BTC","ETH","BNB","XRP","DOGE","SOL","TRX"
+    ]
+
     Component.onCompleted: fetchExchangeInfo()
+
+    function splitSymbol(sym) {
+        for (const q of knownQuotes) {
+            if (sym.endsWith(q) && sym.length > q.length) {
+                return { base: sym.slice(0, -q.length), quote: q }
+            }
+        }
+        return { base: sym, quote: "" }
+    }
 
     function fetchExchangeInfo() {
         const xhr = new XMLHttpRequest()
-        xhr.open("GET", "https://api.binance.com/api/v3/exchangeInfo?permissions=SPOT")
-        xhr.timeout = 15000
+        xhr.open("GET", "https://api.binance.com/api/v3/ticker/price")
+        xhr.timeout = 20000
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             if (xhr.status === 200) {
                 try {
-                    const data = JSON.parse(xhr.responseText)
-                    allSymbolsModel.clear()
-                    for (const s of data.symbols) {
-                        if (s.status === "TRADING") {
-                            allSymbolsModel.append({
-                                symbol: s.symbol,
-                                base: s.baseAsset,
-                                quote: s.quoteAsset
-                            })
-                        }
+                    const arr = JSON.parse(xhr.responseText)
+                    const syms = new Array(arr.length)
+                    const meta = {}
+                    for (let i = 0; i < arr.length; i++) {
+                        const s = arr[i].symbol
+                        syms[i] = s
+                        meta[s] = splitSymbol(s)
                     }
+                    allSymbols = syms
+                    allMeta = meta
                     exchangeInfoLoaded = true
+                    exchangeInfoError = ""
                     refreshSuggestions(searchField.text)
                 } catch (e) {
                     exchangeInfoError = e.toString()
                 }
+            } else if (xhr.status === 0) {
+                exchangeInfoError = i18n("Network unavailable")
             } else {
                 exchangeInfoError = i18n("HTTP %1", xhr.status)
             }
@@ -84,20 +102,22 @@ Kirigami.FormLayout {
         suggestionsModel.clear()
         const q = (query || "").trim().toUpperCase()
         if (q.length < 1) return
-        let count = 0
         const exact = []
         const prefix = []
         const contains = []
-        for (let i = 0; i < allSymbolsModel.count && count < 400; i++) {
-            const s = allSymbolsModel.get(i)
-            if (s.symbol === q || s.base === q) exact.push(s)
-            else if (s.symbol.startsWith(q) || s.base.startsWith(q)) prefix.push(s)
-            else if (s.symbol.indexOf(q) !== -1) contains.push(s)
-            else continue
-            count++
+        for (let i = 0; i < allSymbols.length; i++) {
+            const sym = allSymbols[i]
+            const m = allMeta[sym]
+            if (sym === q || (m && m.base === q)) exact.push(sym)
+            else if (sym.startsWith(q) || (m && m.base.startsWith(q))) prefix.push(sym)
+            else if (sym.indexOf(q) !== -1) contains.push(sym)
+            if (exact.length >= 12) break
         }
         const ordered = exact.concat(prefix).concat(contains).slice(0, 12)
-        for (const s of ordered) suggestionsModel.append(s)
+        for (const sym of ordered) {
+            const m = allMeta[sym] || { base: sym, quote: "" }
+            suggestionsModel.append({ symbol: sym, base: m.base, quote: m.quote })
+        }
     }
 
     // --- Symbols section ---
