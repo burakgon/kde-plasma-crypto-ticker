@@ -47,8 +47,8 @@ A small, native Plasma widget that shows real-time crypto prices in your panel â
 ### From source
 
 ```bash
-git clone https://github.com/burakgon/cryptoticker.git
-cd cryptoticker
+git clone https://github.com/burakgon/kde-plasma-crypto-ticker.git
+cd kde-plasma-crypto-ticker
 kpackagetool6 --type Plasma/Applet --install .
 ```
 
