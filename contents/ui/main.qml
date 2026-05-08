@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
+import org.kde.plasma.workspace.dbus as DBus
 import org.kde.kirigami as Kirigami
 
 PlasmoidItem {
@@ -16,7 +17,17 @@ PlasmoidItem {
     property bool hasData: false
     property string lastError: ""
 
-    property bool onAC: true
+    // UPower's OnBattery is the source of truth — signal-driven, no polling.
+    // Defaults to AC if UPower is unavailable (e.g. desktops with no battery).
+    DBus.Properties {
+        id: upower
+        busType: DBus.BusType.System
+        service: "org.freedesktop.UPower"
+        path: "/org/freedesktop/UPower"
+        iface: "org.freedesktop.UPower"
+    }
+    readonly property bool onAC: !(upower.properties && upower.properties.OnBattery === true)
+
     property int errorBackoff: 1
     readonly property int effectiveInterval: {
         const base = Math.max(5, Plasmoid.configuration.refreshInterval || 60)
@@ -114,37 +125,6 @@ PlasmoidItem {
         errorBackoff = Math.min(errorBackoff * 2, 16)
     }
 
-    function detectPower() {
-        const statusPaths = [
-            "file:///sys/class/power_supply/BAT0/status",
-            "file:///sys/class/power_supply/BAT1/status",
-            "file:///sys/class/power_supply/battery/status"
-        ]
-        let pending = statusPaths.length
-        let foundBattery = false
-        let discharging = false
-
-        const finish = () => {
-            if (--pending !== 0) return
-            onAC = !foundBattery || !discharging
-        }
-
-        for (const url of statusPaths) {
-            const xhr = new XMLHttpRequest()
-            xhr.open("GET", url)
-            xhr.onreadystatechange = () => {
-                if (xhr.readyState !== XMLHttpRequest.DONE) return
-                const txt = (xhr.responseText || "").trim()
-                if (txt.length > 0) {
-                    foundBattery = true
-                    if (txt === "Discharging") discharging = true
-                }
-                finish()
-            }
-            try { xhr.send() } catch (e) { finish() }
-        }
-    }
-
     Timer {
         id: refreshTimer
         interval: root.effectiveInterval * 1000
@@ -152,15 +132,6 @@ PlasmoidItem {
         repeat: true
         triggeredOnStart: true
         onTriggered: root.fetch()
-    }
-
-    Timer {
-        id: powerTimer
-        interval: 60000
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: root.detectPower()
     }
 
     Connections {
